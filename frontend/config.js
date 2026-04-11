@@ -3,5 +3,5 @@
 // For production: https://your-backend.onrender.com/api
 
 const CONFIG = {
-  API_BASE_URL: 'https://splitmate-backend-8bf2.onrender.com'
+  API_BASE_URL: 'https://splitmate-backend-8bf2.onrender.com/api'
 };
