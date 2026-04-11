@@ -1,0 +1,9 @@
+# netlify.toml — Deploy frontend to Netlify (free)
+[build]
+  base    = "frontend"
+  publish = "frontend"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200

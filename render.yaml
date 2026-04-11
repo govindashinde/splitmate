@@ -1,0 +1,18 @@
+# render.yaml — Deploy backend to Render.com (free tier)
+services:
+  - type: web
+    name: splitmate-backend
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false   # Set this in Render dashboard
+      - key: JWT_SECRET
+        sync: false   # Set this in Render dashboard
+      - key: FRONTEND_URL
+        sync: false   # Set to your Netlify/Vercel URL

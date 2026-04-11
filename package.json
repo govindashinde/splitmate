@@ -1,0 +1,10 @@
+{
+  "name": "splitmate",
+  "version": "1.0.0",
+  "description": "SplitMate — Expense Splitting Web App (Web Technology Assignment)",
+  "scripts": {
+    "backend": "cd backend && npm install && npm run dev",
+    "install-backend": "cd backend && npm install"
+  },
+  "author": "Web Technology Assignment"
+}

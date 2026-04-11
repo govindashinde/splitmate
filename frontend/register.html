@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign up — SplitMate</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="auth-page">
+
+  <div class="auth-container">
+    <div class="auth-brand">
+      <a href="index.html"><span class="brand-icon">⟁</span><span class="brand-name">SplitMate</span></a>
+    </div>
+
+    <div class="auth-card">
+      <h1 class="auth-title">Create account</h1>
+      <p class="auth-sub">Start splitting expenses with your group.</p>
+
+      <div id="auth-error" class="alert alert-error hidden"></div>
+      <div id="auth-success" class="alert alert-success hidden"></div>
+
+      <div class="form-group">
+        <label class="form-label">Full name</label>
+        <input type="text" id="name" class="form-input" placeholder="Arjun Sharma" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" id="email" class="form-input" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password <span class="hint">(min 6 chars)</span></label>
+        <input type="password" id="password" class="form-input" placeholder="••••••••" />
+      </div>
+
+      <button id="reg-btn" class="btn btn-primary btn-full" onclick="handleRegister()">Create account</button>
+
+      <p class="auth-switch">Already have an account? <a href="login.html">Log in</a></p>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script>
+    if (localStorage.getItem('token')) window.location.href = 'dashboard.html';
+
+    async function handleRegister() {
+      const btn = document.getElementById('reg-btn');
+      const errorEl = document.getElementById('auth-error');
+      const successEl = document.getElementById('auth-success');
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      errorEl.classList.add('hidden');
+      successEl.classList.add('hidden');
+
+      if (!name || !email || !password) {
+        showMsg(errorEl, 'All fields are required.'); return;
+      }
+      if (password.length < 6) {
+        showMsg(errorEl, 'Password must be at least 6 characters.'); return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating account...';
+
+      try {
+        const data = await api.post('/auth/register', { name, email, password });
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        showMsg(successEl, 'Account created! Redirecting...');
+        setTimeout(() => window.location.href = 'dashboard.html', 1000);
+      } catch (err) {
+        showMsg(errorEl, err.message || 'Registration failed.');
+        btn.disabled = false;
+        btn.textContent = 'Create account';
+      }
+    }
+
+    function showMsg(el, msg) {
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — SplitMate</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="app-page">
+
+  <!-- APP NAV -->
+  <nav class="app-nav">
+    <div class="nav-brand">
+      <span class="brand-icon">⟁</span>
+      <span class="brand-name">SplitMate</span>
+    </div>
+    <div class="nav-right">
+      <span class="nav-user" id="nav-user-name"></span>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="app-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <h3 class="sidebar-label">Navigation</h3>
+        <a href="dashboard.html" class="sidebar-link active">🏠 Dashboard</a>
+        <a href="dashboard.html" class="sidebar-link" onclick="showJoinModal()">🔗 Join Group</a>
+      </div>
+      <div class="sidebar-section">
+        <h3 class="sidebar-label">My Groups</h3>
+        <div id="sidebar-groups" class="sidebar-groups">
+          <p class="sidebar-empty">Loading...</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-sub" id="greeting"></p>
+        </div>
+        <button class="btn btn-primary" onclick="showCreateGroupModal()">+ New Group</button>
+      </div>
+
+      <!-- SUMMARY CARDS -->
+      <div class="summary-cards" id="summary-cards">
+        <div class="summary-card">
+          <div class="summary-label">Total Groups</div>
+          <div class="summary-value" id="total-groups">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">You are owed</div>
+          <div class="summary-value positive" id="total-owed">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">You owe</div>
+          <div class="summary-value negative" id="total-you-owe">—</div>
+        </div>
+      </div>
+
+      <!-- GROUPS GRID -->
+      <div class="section-header-row">
+        <h2 class="section-title">Your Groups</h2>
+      </div>
+      <div class="groups-grid" id="groups-grid">
+        <div class="loading-state">Loading your groups...</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- CREATE GROUP MODAL -->
+  <div id="create-group-modal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModals()"></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Create a new group</h2>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Group name</label>
+        <input type="text" id="group-name" class="form-input" placeholder="Goa Trip 2024" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select id="group-category" class="form-input">
+          <option value="trip">🏕️ Trip</option>
+          <option value="home">🏠 Home</option>
+          <option value="food">🍕 Food</option>
+          <option value="event">🎉 Event</option>
+          <option value="other">📦 Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description <span class="hint">(optional)</span></label>
+        <input type="text" id="group-desc" class="form-input" placeholder="Weekend trip to Goa" />
+      </div>
+      <div id="group-error" class="alert alert-error hidden"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModals()">Cancel</button>
+        <button class="btn btn-primary" onclick="createGroup()">Create Group</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JOIN GROUP MODAL -->
+  <div id="join-group-modal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeModals()"></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Join a group</h2>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Invite Code</label>
+        <input type="text" id="invite-code" class="form-input" placeholder="e.g. AB12CD34" style="text-transform:uppercase" />
+      </div>
+      <div id="join-error" class="alert alert-error hidden"></div>
+      <div id="join-success" class="alert alert-success hidden"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModals()">Cancel</button>
+        <button class="btn btn-primary" onclick="joinGroup()">Join</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script>
+    requireAuth();
+
+    const user = getUser();
+    document.getElementById('nav-user-name').textContent = user?.name || '';
+    document.getElementById('greeting').textContent = `Good to see you, ${user?.name?.split(' ')[0]}!`;
+
+    loadDashboard();
+
+    async function loadDashboard() {
+      try {
+        const data = await api.get('/groups');
+        const groups = data.groups || [];
+        renderSidebarGroups(groups);
+        renderGroupsGrid(groups);
+        document.getElementById('total-groups').textContent = groups.length;
+
+        // compute overall balances
+        let owed = 0, owes = 0;
+        const uid = (user?._id || user?.id || '').toString();
+        for (const g of groups) {
+          try {
+            const bal = await api.get(`/groups/${g._id}/balances`);
+            // find my balance entry by matching id string
+            const myBal = bal.balances?.find(b => b.id.toString() === uid);
+            if (myBal) {
+              if (myBal.balance > 0.01) owed += myBal.balance;
+              else if (myBal.balance < -0.01) owes += Math.abs(myBal.balance);
+            }
+          } catch(e) { console.log('balance error', e); }
+        }
+        document.getElementById('total-owed').textContent = `₹${owed.toFixed(2)}`;
+        document.getElementById('total-you-owe').textContent = `₹${owes.toFixed(2)}`;
+      } catch (err) {
+        document.getElementById('groups-grid').innerHTML = `<div class="empty-state"><p>Failed to load groups. Check your connection.</p></div>`;
+      }
+    }
+
+    function renderSidebarGroups(groups) {
+      const el = document.getElementById('sidebar-groups');
+      if (!groups.length) {
+        el.innerHTML = '<p class="sidebar-empty">No groups yet</p>'; return;
+      }
+      el.innerHTML = groups.map(g => `
+        <a href="group.html?id=${g._id}" class="sidebar-link">${categoryEmoji(g.category)} ${g.name}</a>
+      `).join('');
+    }
+
+    function renderGroupsGrid(groups) {
+      const el = document.getElementById('groups-grid');
+      if (!groups.length) {
+        el.innerHTML = `<div class="empty-state">
+          <div class="empty-icon">🧾</div>
+          <h3>No groups yet</h3>
+          <p>Create your first group to start splitting expenses.</p>
+          <button class="btn btn-primary" onclick="showCreateGroupModal()">+ Create Group</button>
+        </div>`;
+        return;
+      }
+      el.innerHTML = groups.map(g => `
+        <a href="group.html?id=${g._id}" class="group-card">
+          <div class="group-card-header">
+            <span class="group-emoji">${categoryEmoji(g.category)}</span>
+            <span class="group-badge">${g.category}</span>
+          </div>
+          <h3 class="group-name">${g.name}</h3>
+          <p class="group-desc">${g.description || 'No description'}</p>
+          <div class="group-meta">
+            <span>👥 ${g.members.length} member${g.members.length !== 1 ? 's' : ''}</span>
+            <span class="group-code">Code: ${g.inviteCode}</span>
+          </div>
+        </a>
+      `).join('');
+    }
+
+    async function createGroup() {
+      const name = document.getElementById('group-name').value.trim();
+      const category = document.getElementById('group-category').value;
+      const description = document.getElementById('group-desc').value.trim();
+      const errEl = document.getElementById('group-error');
+      errEl.classList.add('hidden');
+      if (!name) { errEl.textContent = 'Group name is required.'; errEl.classList.remove('hidden'); return; }
+      try {
+        const data = await api.post('/groups', { name, category, description });
+        closeModals();
+        window.location.href = `group.html?id=${data.group._id}`;
+      } catch (err) {
+        errEl.textContent = err.message; errEl.classList.remove('hidden');
+      }
+    }
+
+    async function joinGroup() {
+      const code = document.getElementById('invite-code').value.trim().toUpperCase();
+      const errEl = document.getElementById('join-error');
+      const sucEl = document.getElementById('join-success');
+      errEl.classList.add('hidden'); sucEl.classList.add('hidden');
+      if (!code) { errEl.textContent = 'Enter an invite code.'; errEl.classList.remove('hidden'); return; }
+      try {
+        const data = await api.post(`/groups/join/${code}`, {});
+        sucEl.textContent = `Joined "${data.group.name}"! Redirecting...`; sucEl.classList.remove('hidden');
+        setTimeout(() => { closeModals(); window.location.href = `group.html?id=${data.group._id}`; }, 1200);
+      } catch (err) {
+        errEl.textContent = err.message; errEl.classList.remove('hidden');
+      }
+    }
+
+    function showCreateGroupModal() { document.getElementById('create-group-modal').classList.remove('hidden'); }
+    function showJoinModal(e) {
+      if (e) e.preventDefault();
+      document.getElementById('join-group-modal').classList.remove('hidden');
+    }
+    function closeModals() {
+      document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+    }
+
+    function categoryEmoji(cat) {
+      return { trip: '🏕️', home: '🏠', food: '🍕', event: '🎉', other: '📦' }[cat] || '📦';
+    }
+  </script>
+</body>
+</html>
