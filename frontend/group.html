@@ -335,21 +335,28 @@
       const email = document.getElementById('invite-email').value.trim();
       const msgEl = document.getElementById('invite-msg');
       msgEl.classList.add('hidden');
-      if (!email) return;
+
+      // Validation
+      if (!email) { showMsg(msgEl, 'Please enter an email address.', 'error'); return; }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) { showMsg(msgEl, 'Please enter a valid email address.', 'error'); return; }
+
       try {
         await api.post(`/groups/${groupId}/invite`, { email });
-        msgEl.textContent = `${email} added to the group!`;
-        msgEl.className = 'alert alert-success';
-        msgEl.classList.remove('hidden');
+        showMsg(msgEl, `✅ ${email} added to the group!`, 'success');
         document.getElementById('invite-email').value = '';
         const data = await api.get(`/groups/${groupId}`);
         currentGroup = data.group;
         renderMembers();
       } catch (err) {
-        msgEl.textContent = err.message;
-        msgEl.className = 'alert alert-error';
-        msgEl.classList.remove('hidden');
+        showMsg(msgEl, err.message, 'error');
       }
+    }
+
+    function showMsg(el, msg, type) {
+      el.textContent = msg;
+      el.className = `alert alert-${type}`;
+      el.classList.remove('hidden');
     }
 
     function copyInviteCode() {
@@ -380,18 +387,25 @@
 
     async function addExpense() {
       const title = document.getElementById('exp-title').value.trim();
-      const amount = parseFloat(document.getElementById('exp-amount').value);
+      const amountVal = document.getElementById('exp-amount').value;
+      const amount = parseFloat(amountVal);
       const category = document.getElementById('exp-category').value;
       const paidBy = document.getElementById('exp-paid-by').value;
       const notes = document.getElementById('exp-notes').value.trim();
       const errEl = document.getElementById('exp-error');
+      const btn = event.currentTarget;
       errEl.classList.add('hidden');
 
-      if (!title || !amount || amount <= 0) {
-        errEl.textContent = 'Title and a valid amount are required.';
-        errEl.classList.remove('hidden'); return;
-      }
+      // Validation
+      if (!title) { showExpErr(errEl, 'Please enter an expense title.'); return; }
+      if (title.length < 2) { showExpErr(errEl, 'Title must be at least 2 characters.'); return; }
+      if (title.length > 100) { showExpErr(errEl, 'Title must be under 100 characters.'); return; }
+      if (!amountVal) { showExpErr(errEl, 'Please enter an amount.'); return; }
+      if (isNaN(amount) || amount <= 0) { showExpErr(errEl, 'Amount must be a positive number.'); return; }
+      if (amount > 1000000) { showExpErr(errEl, 'Amount seems too large. Please check.'); return; }
+      if (!paidBy) { showExpErr(errEl, 'Please select who paid.'); return; }
 
+      btn.disabled = true; btn.textContent = 'Adding...';
       try {
         await api.post('/expenses', { groupId, title, amount, category, paidBy, splitType: 'equal', notes });
         closeModals();
@@ -400,8 +414,15 @@
         document.getElementById('exp-amount').value = '';
         document.getElementById('exp-notes').value = '';
       } catch (err) {
-        errEl.textContent = err.message; errEl.classList.remove('hidden');
+        showExpErr(errEl, err.message);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Add Expense';
       }
+    }
+
+    function showExpErr(el, msg) {
+      el.textContent = msg;
+      el.classList.remove('hidden');
     }
 
     function showTab(tab) {

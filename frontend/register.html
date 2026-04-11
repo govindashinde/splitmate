@@ -57,12 +57,16 @@
       errorEl.classList.add('hidden');
       successEl.classList.add('hidden');
 
-      if (!name || !email || !password) {
-        showMsg(errorEl, 'All fields are required.'); return;
-      }
-      if (password.length < 6) {
-        showMsg(errorEl, 'Password must be at least 6 characters.'); return;
-      }
+      // Validation
+      if (!name) { showMsg(errorEl, 'Full name is required.'); return; }
+      if (name.length < 2) { showMsg(errorEl, 'Name must be at least 2 characters.'); return; }
+      if (name.length > 50) { showMsg(errorEl, 'Name must be under 50 characters.'); return; }
+      if (!email) { showMsg(errorEl, 'Email address is required.'); return; }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) { showMsg(errorEl, 'Please enter a valid email address.'); return; }
+      if (!password) { showMsg(errorEl, 'Password is required.'); return; }
+      if (password.length < 6) { showMsg(errorEl, 'Password must be at least 6 characters.'); return; }
+      if (password.length > 100) { showMsg(errorEl, 'Password is too long.'); return; }
 
       btn.disabled = true;
       btn.textContent = 'Creating account...';
@@ -71,7 +75,7 @@
         const data = await api.post('/auth/register', { name, email, password });
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        showMsg(successEl, 'Account created! Redirecting...');
+        showMsg(successEl, '✅ Account created! Redirecting...');
         setTimeout(() => window.location.href = 'dashboard.html', 1000);
       } catch (err) {
         showMsg(errorEl, err.message || 'Registration failed.');

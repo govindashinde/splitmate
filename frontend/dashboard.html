@@ -28,7 +28,7 @@
       <div class="sidebar-section">
         <h3 class="sidebar-label">Navigation</h3>
         <a href="dashboard.html" class="sidebar-link active">🏠 Dashboard</a>
-        <a href="dashboard.html" class="sidebar-link" onclick="showJoinModal()">🔗 Join Group</a>
+        <a href="#" class="sidebar-link" onclick="showJoinModal(event)">🔗 Join Group</a>
       </div>
       <div class="sidebar-section">
         <h3 class="sidebar-label">My Groups</h3>
@@ -212,14 +212,22 @@
       const category = document.getElementById('group-category').value;
       const description = document.getElementById('group-desc').value.trim();
       const errEl = document.getElementById('group-error');
+      const btn = event.currentTarget;
       errEl.classList.add('hidden');
-      if (!name) { errEl.textContent = 'Group name is required.'; errEl.classList.remove('hidden'); return; }
+
+      // Validation
+      if (!name) { showErr(errEl, 'Group name is required.'); return; }
+      if (name.length < 2) { showErr(errEl, 'Group name must be at least 2 characters.'); return; }
+      if (name.length > 50) { showErr(errEl, 'Group name must be under 50 characters.'); return; }
+
+      btn.disabled = true; btn.textContent = 'Creating...';
       try {
         const data = await api.post('/groups', { name, category, description });
         closeModals();
         window.location.href = `group.html?id=${data.group._id}`;
       } catch (err) {
-        errEl.textContent = err.message; errEl.classList.remove('hidden');
+        showErr(errEl, err.message);
+        btn.disabled = false; btn.textContent = 'Create Group';
       }
     }
 
@@ -227,22 +235,46 @@
       const code = document.getElementById('invite-code').value.trim().toUpperCase();
       const errEl = document.getElementById('join-error');
       const sucEl = document.getElementById('join-success');
+      const btn = event.currentTarget;
       errEl.classList.add('hidden'); sucEl.classList.add('hidden');
-      if (!code) { errEl.textContent = 'Enter an invite code.'; errEl.classList.remove('hidden'); return; }
+
+      // Validation
+      if (!code) { showErr(errEl, 'Please enter an invite code.'); return; }
+      if (code.length < 6) { showErr(errEl, 'Invite code must be at least 6 characters.'); return; }
+      if (!/^[A-Z0-9]+$/.test(code)) { showErr(errEl, 'Invalid code format. Only letters and numbers allowed.'); return; }
+
+      btn.disabled = true; btn.textContent = 'Joining...';
       try {
         const data = await api.post(`/groups/join/${code}`, {});
-        sucEl.textContent = `Joined "${data.group.name}"! Redirecting...`; sucEl.classList.remove('hidden');
+        sucEl.textContent = `✅ Joined "${data.group.name}"! Redirecting...`;
+        sucEl.classList.remove('hidden');
         setTimeout(() => { closeModals(); window.location.href = `group.html?id=${data.group._id}`; }, 1200);
       } catch (err) {
-        errEl.textContent = err.message; errEl.classList.remove('hidden');
+        showErr(errEl, err.message);
+        btn.disabled = false; btn.textContent = 'Join';
       }
     }
 
-    function showCreateGroupModal() { document.getElementById('create-group-modal').classList.remove('hidden'); }
+    function showErr(el, msg) {
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+
+    function showCreateGroupModal() {
+      document.getElementById('group-name').value = '';
+      document.getElementById('group-desc').value = '';
+      document.getElementById('group-error').classList.add('hidden');
+      document.getElementById('create-group-modal').classList.remove('hidden');
+    }
+
     function showJoinModal(e) {
-      if (e) e.preventDefault();
+      e.preventDefault();
+      document.getElementById('invite-code').value = '';
+      document.getElementById('join-error').classList.add('hidden');
+      document.getElementById('join-success').classList.add('hidden');
       document.getElementById('join-group-modal').classList.remove('hidden');
     }
+
     function closeModals() {
       document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
     }
