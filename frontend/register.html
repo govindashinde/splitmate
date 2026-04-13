@@ -23,16 +23,25 @@
       <div id="auth-success" class="alert alert-success hidden"></div>
 
       <div class="form-group">
-        <label class="form-label">Full name</label>
-        <input type="text" id="name" class="form-input" placeholder="Arjun Sharma" />
+        <label class="form-label">Full name <span class="hint">(letters only)</span></label>
+        <input type="text" id="name" class="form-input" placeholder="Arjun Sharma" oninput="validateName(this)" />
+        <span id="name-msg" class="field-msg"></span>
       </div>
       <div class="form-group">
         <label class="form-label">Email</label>
-        <input type="email" id="email" class="form-input" placeholder="you@example.com" />
+        <input type="email" id="email" class="form-input" placeholder="you@example.com" oninput="validateEmail(this)" />
+        <span id="email-msg" class="field-msg"></span>
       </div>
       <div class="form-group">
-        <label class="form-label">Password <span class="hint">(min 6 chars)</span></label>
-        <input type="password" id="password" class="form-input" placeholder="••••••••" />
+        <label class="form-label">Password <span class="hint">(strong password required)</span></label>
+        <input type="password" id="password" class="form-input" placeholder="••••••••" oninput="validatePassword(this)" />
+        <div class="password-rules" id="pw-rules">
+          <div class="pw-rule" id="rule-len">✗ At least 8 characters</div>
+          <div class="pw-rule" id="rule-upper">✗ At least one uppercase letter (A-Z)</div>
+          <div class="pw-rule" id="rule-lower">✗ At least one lowercase letter (a-z)</div>
+          <div class="pw-rule" id="rule-num">✗ At least one number (0-9)</div>
+          <div class="pw-rule" id="rule-special">✗ At least one special character (!@#$%)</div>
+        </div>
       </div>
 
       <button id="reg-btn" class="btn btn-primary btn-full" onclick="handleRegister()">Create account</button>
@@ -41,11 +50,98 @@
     </div>
   </div>
 
+  <style>
+    .field-msg { font-size: 0.78rem; margin-top: 3px; display: block; min-height: 16px; }
+    .field-msg.error { color: #C0392B; }
+    .field-msg.success { color: #27AE60; }
+    .password-rules { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+    .pw-rule { font-size: 0.78rem; color: #9E9891; transition: color 0.2s; }
+    .pw-rule.pass { color: #27AE60; }
+    .pw-rule.pass::first-letter { }
+    .form-input.input-error { border-color: #C0392B; }
+    .form-input.input-ok { border-color: #27AE60; }
+  </style>
+
   <script src="config.js"></script>
   <script src="api.js"></script>
   <script>
     if (localStorage.getItem('token')) window.location.href = 'dashboard.html';
 
+    // ── Live validators ──
+
+    function validateName(input) {
+      const val = input.value.trim();
+      const msg = document.getElementById('name-msg');
+      const onlyLetters = /^[A-Za-z\s]+$/.test(val);
+
+      if (!val) {
+        setField(input, msg, '', 'neutral'); return;
+      }
+      if (!onlyLetters) {
+        setField(input, msg, 'Name must contain letters only — no numbers or symbols.', 'error'); return;
+      }
+      if (val.length < 2) {
+        setField(input, msg, 'Name must be at least 2 characters.', 'error'); return;
+      }
+      if (val.length > 50) {
+        setField(input, msg, 'Name must be under 50 characters.', 'error'); return;
+      }
+      setField(input, msg, '✓ Looks good!', 'success');
+    }
+
+    function validateEmail(input) {
+      const val = input.value.trim();
+      const msg = document.getElementById('email-msg');
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!val) { setField(input, msg, '', 'neutral'); return; }
+      if (!emailRegex.test(val)) {
+        setField(input, msg, 'Enter a valid email like name@example.com', 'error'); return;
+      }
+      setField(input, msg, '✓ Valid email!', 'success');
+    }
+
+    function validatePassword(input) {
+      const val = input.value;
+      const checks = {
+        len:     val.length >= 8,
+        upper:   /[A-Z]/.test(val),
+        lower:   /[a-z]/.test(val),
+        num:     /[0-9]/.test(val),
+        special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(val)
+      };
+      const rules = {
+        'rule-len':     { pass: checks.len,     text: '8+ characters' },
+        'rule-upper':   { pass: checks.upper,   text: 'At least one uppercase letter (A-Z)' },
+        'rule-lower':   { pass: checks.lower,   text: 'At least one lowercase letter (a-z)' },
+        'rule-num':     { pass: checks.num,     text: 'At least one number (0-9)' },
+        'rule-special': { pass: checks.special, text: 'At least one special character (!@#$%)' }
+      };
+      Object.entries(rules).forEach(([id, { pass, text }]) => {
+        const el = document.getElementById(id);
+        el.textContent = (pass ? '✓ ' : '✗ ') + text;
+        el.classList.toggle('pass', pass);
+      });
+      const allPass = Object.values(checks).every(Boolean);
+      input.classList.toggle('input-ok', allPass);
+      input.classList.toggle('input-error', val.length > 0 && !allPass);
+    }
+
+    function setField(input, msgEl, text, type) {
+      msgEl.textContent = text;
+      msgEl.className = 'field-msg' + (type === 'error' ? ' error' : type === 'success' ? ' success' : '');
+      input.classList.toggle('input-error', type === 'error');
+      input.classList.toggle('input-ok', type === 'success');
+    }
+
+    function isPasswordStrong(pw) {
+      return pw.length >= 8 &&
+        /[A-Z]/.test(pw) &&
+        /[a-z]/.test(pw) &&
+        /[0-9]/.test(pw) &&
+        /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pw);
+    }
+
+    // ── Submit handler ──
     async function handleRegister() {
       const btn = document.getElementById('reg-btn');
       const errorEl = document.getElementById('auth-error');
@@ -57,16 +153,21 @@
       errorEl.classList.add('hidden');
       successEl.classList.add('hidden');
 
-      // Validation
+      // Name validation
       if (!name) { showMsg(errorEl, 'Full name is required.'); return; }
+      if (!/^[A-Za-z\s]+$/.test(name)) { showMsg(errorEl, 'Name must contain letters only — no numbers or symbols.'); return; }
       if (name.length < 2) { showMsg(errorEl, 'Name must be at least 2 characters.'); return; }
       if (name.length > 50) { showMsg(errorEl, 'Name must be under 50 characters.'); return; }
+
+      // Email validation
       if (!email) { showMsg(errorEl, 'Email address is required.'); return; }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) { showMsg(errorEl, 'Please enter a valid email address.'); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg(errorEl, 'Please enter a valid email address.'); return; }
+
+      // Strong password validation
       if (!password) { showMsg(errorEl, 'Password is required.'); return; }
-      if (password.length < 6) { showMsg(errorEl, 'Password must be at least 6 characters.'); return; }
-      if (password.length > 100) { showMsg(errorEl, 'Password is too long.'); return; }
+      if (!isPasswordStrong(password)) {
+        showMsg(errorEl, 'Password is too weak. Please meet all the requirements shown below.'); return;
+      }
 
       btn.disabled = true;
       btn.textContent = 'Creating account...';
